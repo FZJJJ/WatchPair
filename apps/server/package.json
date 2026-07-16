@@ -1,0 +1,21 @@
+{
+  "name": "@watchpair/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "dev": "node --watch --import tsx src/index.ts",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@watchpair/protocol": "0.1.0",
+    "express": "^5.0.0",
+    "ws": "^8.0.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.0.0"
+  }
+}

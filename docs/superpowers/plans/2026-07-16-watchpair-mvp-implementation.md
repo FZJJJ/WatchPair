@@ -64,6 +64,7 @@ WatchPair/
 ## 任务 1：建立 monorepo 与质量检查基础
 
 **文件：**
+
 - 新建：`package.json`
 - 新建：`tsconfig.base.json`
 - 新建：`eslint.config.js`
@@ -129,6 +130,7 @@ git commit -m "chore: scaffold WatchPair monorepo"
 ## 任务 2：以 TDD 实现共享协议与同步算法
 
 **文件：**
+
 - 新建：`packages/protocol/src/messages.ts`
 - 新建：`packages/protocol/src/sync.ts`
 - 新建：`packages/protocol/src/reconnect.ts`
@@ -142,15 +144,17 @@ git commit -m "chore: scaffold WatchPair monorepo"
 测试必须证明合法的 `create-room`、`join-room`、`media-operation` 和 `state-snapshot` 可以解析，同时缺失 `participantId`、超长字符串、非法倍速和未知消息类型会被拒绝。核心示例：
 
 ```ts
-expect(ClientMessageSchema.safeParse({
-  type: 'media-operation',
-  roomCode: 'AB3K7M',
-  participantId: 'participant-12345678',
-  operationId: 'op-1',
-  clientSentAt: 1_000,
-  video: { bvid: 'BV1xx411c7mD', part: 1, duration: 120 },
-  media: { paused: false, currentTime: 10, playbackRate: 1 }
-}).success).toBe(true);
+expect(
+  ClientMessageSchema.safeParse({
+    type: 'media-operation',
+    roomCode: 'AB3K7M',
+    participantId: 'participant-12345678',
+    operationId: 'op-1',
+    clientSentAt: 1_000,
+    video: { bvid: 'BV1xx411c7mD', part: 1, duration: 120 },
+    media: { paused: false, currentTime: 10, playbackRate: 1 },
+  }).success,
+).toBe(true);
 ```
 
 - [ ] **步骤 2：运行测试确认失败**
@@ -173,9 +177,18 @@ expect(ClientMessageSchema.safeParse({
 
 ```ts
 expect(planCorrection({ driftSeconds: 0.2, roomRate: 1 })).toEqual({ kind: 'none' });
-expect(planCorrection({ driftSeconds: 0.8, roomRate: 1 })).toMatchObject({ kind: 'nudge', playbackRate: 1.08 });
-expect(planCorrection({ driftSeconds: -0.8, roomRate: 1 })).toMatchObject({ kind: 'nudge', playbackRate: 0.92 });
-expect(planCorrection({ driftSeconds: 2, roomRate: 1 })).toEqual({ kind: 'seek', targetOffset: -2 });
+expect(planCorrection({ driftSeconds: 0.8, roomRate: 1 })).toMatchObject({
+  kind: 'nudge',
+  playbackRate: 1.08,
+});
+expect(planCorrection({ driftSeconds: -0.8, roomRate: 1 })).toMatchObject({
+  kind: 'nudge',
+  playbackRate: 0.92,
+});
+expect(planCorrection({ driftSeconds: 2, roomRate: 1 })).toEqual({
+  kind: 'seek',
+  targetOffset: -2,
+});
 expect(reconnectDelayMs(0, () => 0.5)).toBeGreaterThanOrEqual(400);
 expect(reconnectDelayMs(20, () => 0.5)).toBeLessThanOrEqual(30_000);
 ```
@@ -196,6 +209,7 @@ git commit -m "feat: add shared synchronization protocol"
 ## 任务 3：以 TDD 实现房间状态存储
 
 **文件：**
+
 - 新建：`apps/server/src/room-store.ts`
 - 新建：`apps/server/tests/room-store.test.ts`
 
@@ -237,6 +251,7 @@ git commit -m "feat: add in-memory room store"
 ## 任务 4：以 TDD 实现 WebSocket 服务
 
 **文件：**
+
 - 新建：`apps/server/src/rate-limiter.ts`
 - 新建：`apps/server/src/index.ts`
 - 新建：`apps/server/tests/server.test.ts`
@@ -275,6 +290,7 @@ git commit -m "feat: add WatchPair WebSocket relay"
 ## 任务 5：建立 Edge 插件构建、清单和设置存储
 
 **文件：**
+
 - 新建：`apps/extension/public/manifest.json`
 - 新建：`apps/extension/src/shared/settings.ts`
 - 新建：`apps/extension/src/shared/extension-messages.ts`
@@ -319,6 +335,7 @@ git commit -m "chore: scaffold Edge extension"
 ## 任务 6：以 TDD 实现哔哩哔哩适配器和媒体控制器
 
 **文件：**
+
 - 新建：`apps/extension/src/content/bilibili-adapter.ts`
 - 新建：`apps/extension/src/content/media-sync-controller.ts`
 - 新建：`apps/extension/tests/bilibili-adapter.test.ts`
@@ -354,6 +371,7 @@ git commit -m "feat: synchronize Bilibili media controls"
 ## 任务 7：实现内容脚本与 Service Worker 的端到端消息流
 
 **文件：**
+
 - 新建：`apps/extension/src/content/content-script.ts`
 - 新建：`apps/extension/src/background/service-worker.ts`
 - 新建：`apps/extension/tests/service-worker.test.ts`
@@ -390,6 +408,7 @@ git commit -m "feat: connect extension to sync rooms"
 ## 任务 8：实现插件弹出面板
 
 **文件：**
+
 - 新建：`apps/extension/src/popup/index.html`
 - 新建：`apps/extension/src/popup/main.ts`
 - 新建：`apps/extension/src/popup/styles.css`
@@ -423,6 +442,7 @@ git commit -m "feat: add WatchPair room controls"
 ## 任务 9：添加 Render 部署配置和完整中文文档
 
 **文件：**
+
 - 新建：`render.yaml`
 - 新建：`README.md`
 - 修改：`apps/extension/src/shared/settings.ts`
@@ -453,6 +473,7 @@ git commit -m "docs: add deployment and usage guide"
 ## 任务 10：端到端验证与交付构建
 
 **文件：**
+
 - 可能修改：仅修改本任务验证发现的问题对应文件
 - 生成但不提交：`apps/extension/dist/`
 
