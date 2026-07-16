@@ -1,4 +1,154 @@
+:root {
+  color: #24212b;
+  background: #fff8f7;
+  font:
+    14px/1.45 system-ui,
+    sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
 body {
+  width: 360px;
   margin: 0;
-  font-family: system-ui, sans-serif;
+}
+main {
+  padding: 22px;
+}
+header {
+  margin-bottom: 18px;
+}
+.eyebrow {
+  color: #d35f75;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+h1 {
+  margin: 2px 0 0;
+  font-size: 28px;
+  letter-spacing: -0.04em;
+}
+header p {
+  margin: 2px 0;
+  color: #706a76;
+}
+.card {
+  padding: 18px;
+  border: 1px solid #f0dadd;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 36px #79334112;
+}
+h2 {
+  margin: 8px 0 4px;
+  font-size: 16px;
+}
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #716a76;
+  font-size: 12px;
+}
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e7768a;
+  box-shadow: 0 0 0 4px #fde7eb;
+}
+.room-code {
+  margin: 8px 0 14px;
+  font:
+    700 30px/1 ui-monospace,
+    monospace;
+  letter-spacing: 0.12em;
+}
+button,
+input {
+  min-height: 40px;
+  border-radius: 10px;
+  font: inherit;
+}
+button {
+  border: 0;
+  padding: 0 14px;
+  cursor: pointer;
+  background: #f5e8ea;
+  color: #55323a;
+  font-weight: 700;
+}
+button:focus-visible,
+input:focus-visible {
+  outline: 3px solid #f2a7b5;
+  outline-offset: 2px;
+}
+.primary {
+  width: 100%;
+  color: white;
+  background: #d85e76;
+}
+.join-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+}
+input {
+  width: 100%;
+  border: 1px solid #dfd5d8;
+  padding: 0 11px;
+  background: white;
+}
+label {
+  display: block;
+  margin: 8px 0 5px;
+  color: #625b66;
+  font-size: 12px;
+  font-weight: 700;
+}
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 14px 0 4px;
+  color: #9c929a;
+  font-size: 11px;
+}
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: #eee4e6;
+}
+.text-button {
+  width: 100%;
+  margin-top: 10px;
+  background: transparent;
+  color: #8b6570;
+}
+.peer {
+  margin: 6px 0 0;
+  text-align: center;
+  color: #6d6570;
+  font-size: 12px;
+}
+.error {
+  min-height: 18px;
+  margin: 6px 0 0;
+  color: #b3263e;
+  font-size: 12px;
+}
+.settings {
+  margin-top: 14px;
+  color: #6d6570;
+}
+.settings summary {
+  cursor: pointer;
+  font-weight: 700;
+}
+.settings button {
+  width: 100%;
+  margin-top: 8px;
 }
