@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: watchpair-server
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build -w @watchpair/protocol && npm run build -w @watchpair/server
+    startCommand: npm start -w @watchpair/server
+    healthCheckPath: /health
+    autoDeployTrigger: commit

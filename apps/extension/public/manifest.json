@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "WatchPair",
+  "version": "0.1.0",
+  "description": "与远方的另一半同步观看哔哩哔哩视频。",
+  "permissions": ["storage"],
+  "host_permissions": ["https://www.bilibili.com/video/*"],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "WatchPair",
+    "default_popup": "popup/index.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.bilibili.com/video/*"],
+      "js": ["content/content-script.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
