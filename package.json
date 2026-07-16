@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build --workspaces --if-present",
+    "build": "npm run build -w @watchpair/protocol && npm run build -w @watchpair/server && npm run build -w @watchpair/extension",
     "test": "vitest run --passWithNoTests",
     "test:watch": "vitest",
     "typecheck": "npm run typecheck --workspaces --if-present",
