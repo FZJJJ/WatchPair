@@ -1,139 +1,139 @@
-# WatchPair MVP Design
+# WatchPair MVP 设计文档
 
-## 1. Goal
+## 1. 项目目标
 
-WatchPair is a private Microsoft Edge extension for two people to watch the same Bilibili video remotely. Each person opens the video on their own computer. The extension synchronizes playback controls through a small WebSocket relay; it never relays or stores video content.
+WatchPair 是一个供两人异地同步观看哔哩哔哩视频使用的私人 Microsoft Edge 插件。两位用户分别在自己的电脑上打开同一个视频，插件通过一个轻量的 WebSocket 中转服务同步播放控制；视频内容本身不会经过中转服务，也不会被存储。
 
-The MVP targets Windows desktop Microsoft Edge. Both viewers install the unpacked extension through `edge://extensions` and enable Developer mode.
+MVP 以 Windows 桌面版 Microsoft Edge 为目标环境。双方都需要在 `edge://extensions` 中开启“开发人员模式”，然后加载解压缩后的插件。
 
-## 2. Scope
+## 2. 功能范围
 
-### Included
+### 2.1 包含的功能
 
-- Bilibili standard video pages only.
-- Two participants per room.
-- Six-character room codes.
-- Create and join room flows without accounts.
-- Play, pause, seek, and playback-rate synchronization.
-- Connection, peer presence, buffering, and synchronization status.
-- Automatic reconnection and state recovery.
-- Node.js WebSocket relay deployable to a Render free web service.
-- In-memory room state with automatic cleanup.
+- 仅支持哔哩哔哩普通视频页面。
+- 每个房间最多两人。
+- 使用六位房间码。
+- 无需注册账号即可创建或加入房间。
+- 同步播放、暂停、跳转进度和播放倍速。
+- 显示连接状态、对方在线状态、缓冲状态和同步状态。
+- 断线后自动重连并恢复房间状态。
+- 使用可部署到 Render 免费 Web Service 的 Node.js WebSocket 中转服务。
+- 房间状态只保存在服务器内存中，并在过期后自动清理。
 
-### Excluded
+### 2.2 暂不包含的功能
 
-- Voice, text chat, and danmaku synchronization.
-- Mobile browsers and browsers other than Edge as tested targets.
-- Video sites other than Bilibili.
-- Accounts, friend lists, and room history.
-- Video forwarding, downloading, advertisement handling, or membership bypasses.
-- Browser store publishing.
+- 语音、文字聊天和弹幕同步。
+- 手机浏览器，以及将 Edge 之外的浏览器作为正式测试目标。
+- 哔哩哔哩之外的视频网站。
+- 账号、好友列表和历史房间。
+- 视频转发、下载、广告处理或会员权限绕过。
+- 上架浏览器扩展商店。
 
-## 3. Architecture
+## 3. 系统架构
 
-The repository is a TypeScript monorepo:
+项目采用 TypeScript monorepo 结构：
 
 ```text
 WatchPair/
 ├─ apps/
-│  ├─ extension/     Edge Manifest V3 extension
-│  └─ server/        Node.js WebSocket relay
+│  ├─ extension/     Edge Manifest V3 插件
+│  └─ server/        Node.js WebSocket 中转服务
 ├─ packages/
-│  └─ protocol/      Shared message types and runtime validation
+│  └─ protocol/      两端共享的消息类型和运行时校验
 ├─ docs/
 ├─ package.json
 └─ README.md
 ```
 
-The extension contains four isolated responsibilities:
+插件由四个职责相互隔离的模块组成：
 
-1. The popup manages room creation, room joining, configuration, and status display.
-2. The content script detects the active Bilibili video element, observes local media events, and applies remote media commands.
-3. The service worker owns connection lifecycle and routes messages between the popup, content script, and server.
-4. The Bilibili adapter identifies the current BV number, part number, duration, and active video element despite single-page navigation.
+1. 弹出面板负责创建房间、加入房间、配置服务地址和展示状态。
+2. 内容脚本负责寻找当前哔哩哔哩视频元素、监听本地媒体事件，以及执行远端媒体指令。
+3. Service Worker 负责管理连接生命周期，并在弹出面板、内容脚本和服务端之间转发消息。
+4. 哔哩哔哩适配器负责在单页应用导航过程中识别当前 BV 号、分 P 编号、视频时长和有效的视频元素。
 
-The server validates protocol messages, limits each room to two members, orders accepted operations, broadcasts state, and removes inactive rooms. It does not receive Bilibili cookies, account data, page content, or video media.
+服务端负责校验协议消息、将每个房间限制为两人、排列有效操作的顺序、广播房间状态，以及清理过期房间。服务端不会接收哔哩哔哩 Cookie、账号数据、页面内容或视频媒体。
 
-## 4. Room and Identity Model
+## 4. 房间与身份模型
 
-- A room code contains six unambiguous uppercase letters or digits.
-- A random local participant ID is generated once and stored in extension local storage.
-- A room accepts no more than two simultaneously connected participant IDs.
-- Both participants may control playback.
-- The server assigns a monotonically increasing room revision to each accepted operation. The latest revision is authoritative.
-- When both participants disconnect, the room remains recoverable for 10 minutes and is then deleted.
+- 房间码由六个不容易混淆的大写字母或数字组成。
+- 插件首次运行时生成一个随机参与者 ID，并保存在插件本地存储中。
+- 一个房间同时最多接受两个不同的参与者 ID。
+- 双方均可控制视频。
+- 服务端为每个被接受的操作分配单调递增的房间版本号，版本号最新的状态为权威状态。
+- 双方都断开连接后，房间继续保留 10 分钟，之后自动删除。
 
-## 5. Synchronization Protocol
+## 5. 同步协议
 
-An operation contains the room code, participant ID, video identity, media state, client timestamp, client operation ID, and server-assigned revision. Video identity consists of BV number, part number, and rounded duration.
+每条操作消息包含房间码、参与者 ID、视频标识、媒体状态、客户端时间戳、客户端操作 ID，以及由服务端分配的房间版本号。视频标识由 BV 号、分 P 编号和取整后的视频时长组成。
 
-Local `play`, `pause`, `seeked`, and `ratechange` events produce operations. Applying a remote operation sets a short-lived remote-application guard so resulting DOM events are not rebroadcast.
+本地发生 `play`、`pause`、`seeked` 和 `ratechange` 事件时，插件生成并发送操作消息。插件执行远端操作时会设置一个短时有效的“正在应用远端操作”标记，避免由此产生的 DOM 事件再次向外广播，形成同步死循环。
 
-The extension also publishes a state snapshot every five seconds while connected. Synchronization uses the server timestamp and measured round-trip latency to estimate the authoritative target time.
+连接期间，插件每五秒发送一次状态快照。插件结合服务端时间戳和测得的网络往返延迟，估算当前应当对齐的权威播放时间。
 
-Drift handling:
+进度偏差处理规则：
 
-- Below 300 ms: no correction.
-- From 300 ms through 1.5 s: temporarily adjust playback speed within 0.92x to 1.08x, then restore the room rate.
-- Above 1.5 s: seek directly to the target position.
+- 小于 300 毫秒：不做修正。
+- 300 毫秒至 1.5 秒：在 0.92 倍至 1.08 倍范围内临时调整速度，完成追赶后恢复房间设定的倍速。
+- 大于 1.5 秒：直接跳转到目标进度。
 
-If the BV number, part number, or duration does not match, media commands are withheld and both users see a same-video warning.
+如果双方的 BV 号、分 P 编号或视频时长不一致，插件不执行媒体控制指令，并向双方显示“请打开同一个视频”的提示。
 
-Buffering does not pause the peer in the MVP. The buffering state is shown to the peer, and playback is recalibrated when buffering ends.
+MVP 不会在一方缓冲时强制暂停另一方。插件会向对方显示缓冲状态，并在缓冲结束后重新校准播放进度。
 
-## 6. Connection and Error Handling
+## 6. 连接与异常处理
 
-- The client reconnects with capped exponential backoff and jitter.
-- After reconnecting, the client requests the current authoritative room snapshot before sending new media operations.
-- Render cold starts are shown as `Starting server…`; the UI distinguishes this from a permanent connection failure.
-- Invalid messages are rejected without changing room state.
-- A missing room, full room, mismatched video, missing video element, disconnected peer, and server error each have a distinct user-facing message.
-- Bilibili single-page navigation triggers video identity and element rediscovery without requiring an extension reload.
+- 客户端使用带随机抖动和最大等待上限的指数退避策略自动重连。
+- 重连成功后，客户端先向服务端请求房间的最新权威快照，再允许发送新的媒体操作。
+- Render 冷启动期间显示“服务器正在启动”，并与永久性连接失败明确区分。
+- 无效消息会被拒绝，并且不会改变房间状态。
+- 房间不存在、房间已满、视频不一致、未找到视频元素、对方离线和服务器异常均使用不同的用户提示。
+- 哔哩哔哩发生单页导航后，插件会重新识别视频信息和视频元素，无需重新加载插件。
 
-## 7. Security and Privacy
+## 7. 安全与隐私
 
-- Manifest V3 permissions are limited to extension storage and Bilibili page access required by the feature.
-- The production WebSocket endpoint uses `wss://`.
-- All inbound messages receive runtime schema validation and size limits.
-- Room codes are not treated as strong authentication secrets. The server rate-limits room joins by network source, temporarily blocks repeated failures, and never reveals whether a guessed code recently existed.
-- No video content, Bilibili cookies, account identifiers, browsing history, or room history is collected.
-- The server keeps only active room state in memory and does not use a database.
+- Manifest V3 只申请插件存储以及访问哔哩哔哩页面所必需的最小权限。
+- 生产环境使用 `wss://` WebSocket 地址。
+- 所有传入消息都要经过运行时结构校验和大小限制。
+- 房间码不被视为高强度身份凭证。服务端按网络来源限制加入频率，临时阻止连续失败的请求，并且不向猜测者透露某个房间码是否曾经存在。
+- 不收集视频内容、哔哩哔哩 Cookie、账号标识、浏览记录或房间历史。
+- 服务端只在内存中保存活动房间状态，不使用数据库。
 
-## 8. Engineering Standards
+## 8. 工程规范
 
-- TypeScript strict mode across all packages.
-- npm workspaces for monorepo dependency management.
-- ESLint and Prettier for static quality and formatting.
-- Vitest for unit and integration tests.
-- Shared protocol definitions prevent client/server message drift.
-- Conventional, focused Git commits.
-- No remotely hosted executable extension code.
+- 所有 TypeScript 项目启用严格模式。
+- 使用 npm workspaces 管理 monorepo 依赖。
+- 使用 ESLint 和 Prettier 进行静态检查与格式化。
+- 使用 Vitest 编写单元测试和集成测试。
+- 客户端和服务端共用协议定义，避免消息结构发生偏差。
+- Git 提交保持单一目的，并采用约定式提交说明。
+- 插件不加载或执行远程托管代码。
 
-## 9. Testing
+## 9. 测试方案
 
-### Automated
+### 9.1 自动化测试
 
-- Unit tests cover room-code generation, schema validation, room state reduction, drift calculation, ordering, duplicate operations, and reconnection backoff.
-- Server integration tests cover room creation and joining, third-member rejection, broadcast behavior, disconnects, expiry, and malformed messages.
-- Extension tests use a simulated HTML media element to cover local event emission, remote application, feedback-loop prevention, and Bilibili identity parsing.
-- CI-equivalent local checks run tests, TypeScript type checking, linting, and production builds.
+- 单元测试覆盖房间码生成、消息结构校验、房间状态归并、进度偏差计算、操作排序、重复操作处理和重连退避策略。
+- 服务端集成测试覆盖创建和加入房间、拒绝第三人、消息广播、成员断开、房间过期和异常消息处理。
+- 插件测试使用模拟的 HTML 媒体元素，覆盖本地事件发送、远端操作执行、防止反馈死循环和哔哩哔哩视频标识解析。
+- 本地执行与 CI 等效的测试、TypeScript 类型检查、代码规范检查和生产构建。
 
-### Manual Acceptance
+### 9.2 人工验收
 
-1. Two Windows Edge instances load the unpacked extension and open the same Bilibili video.
-2. Viewer A creates a room and Viewer B joins with the six-character room code.
-3. Play, pause, seek, and rate changes from either viewer are reflected by the other.
-4. During 10 minutes of continuous playback, normal drift remains below one second.
-5. Page refresh, part changes, and temporary network loss produce clear status and recover automatically where possible.
-6. Different videos never receive media commands.
-7. A sleeping Render service is represented as starting rather than as an immediate fatal error.
-8. Tests, type checking, linting, and builds pass.
-9. The README documents local development, Render deployment, unpacked Edge installation, and two-person usage.
+1. 两个 Windows Edge 实例分别加载解压缩插件，并打开同一个哔哩哔哩视频。
+2. 用户 A 创建房间，用户 B 使用六位房间码加入。
+3. 任意一方执行播放、暂停、跳转进度和修改倍速操作时，另一方能够正确跟随。
+4. 连续播放 10 分钟时，正常情况下两端进度差保持在 1 秒以内。
+5. 页面刷新、切换分 P 和短暂断网时，插件显示明确状态，并在可恢复的情况下自动恢复。
+6. 双方打开不同视频时，插件不会错误执行媒体控制指令。
+7. Render 服务处于休眠状态时，插件显示服务器正在启动，而不是立即报告不可恢复的错误。
+8. 自动化测试、类型检查、代码规范检查和生产构建全部通过。
+9. README 包含本地开发、Render 部署、Edge 加载解压缩插件和双人使用说明。
 
-## 10. Deliverables
+## 10. 交付内容
 
-- Complete extension, server, and shared-protocol source.
-- A production extension build loadable as an unpacked Edge extension.
-- Render deployment configuration for the server.
-- Setup and usage documentation.
-- Automated tests and recorded verification commands.
+- 插件、服务端和共享协议的完整源代码。
+- 可以直接在 Edge 中加载的插件生产构建产物。
+- 服务端的 Render 部署配置。
+- 安装、部署和使用说明。
+- 自动化测试及最终验证命令记录。
