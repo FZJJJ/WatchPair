@@ -26,11 +26,19 @@ const roomParticipant = {
   participantId: boundedId,
 };
 
+const videoInvitation = {
+  invitationId: z.string().uuid(),
+  url: z.string().url().regex(/^https:\/\/www\.bilibili\.com\/video\/BV[0-9A-Za-z]{10}/),
+  video: VideoIdentitySchema,
+  media: MediaStateSchema,
+};
+
 export const ClientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('create-room'), participantId: boundedId }).strict(),
   z.object({ type: z.literal('join-room'), ...roomParticipant }).strict(),
   z.object({ type: z.literal('leave-room'), ...roomParticipant }).strict(),
   z.object({ type: z.literal('request-snapshot'), ...roomParticipant }).strict(),
+  z.object({ type: z.literal('video-invitation'), ...roomParticipant, ...videoInvitation }).strict(),
   z
     .object({
       type: z.literal('media-operation'),
@@ -92,6 +100,14 @@ export const ServerMessageSchema = z.discriminatedUnion('type', [
       participantId: boundedId,
       video: VideoIdentitySchema,
       media: MediaStateSchema,
+    })
+    .strict(),
+  z
+    .object({
+      type: z.literal('video-invitation'),
+      ...serverEnvelope,
+      participantId: boundedId,
+      ...videoInvitation,
     })
     .strict(),
   z

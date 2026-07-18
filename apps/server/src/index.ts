@@ -128,6 +128,11 @@ export function createWatchPairServer(): WatchPairServer {
         return;
       }
 
+      if (message.type === 'video-invitation') {
+        broadcast(message.roomCode, { ...message, revision: 0, serverSentAt: Date.now() }, socket);
+        return;
+      }
+
       if (message.type === 'media-operation') {
         const applied = rooms.applyOperation(
           message.roomCode,

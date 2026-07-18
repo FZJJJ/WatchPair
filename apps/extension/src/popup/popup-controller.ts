@@ -32,6 +32,13 @@ export function renderPopup(root: HTMLElement, dependencies: PopupDependencies):
   const error = root.querySelector<HTMLElement>('[role="alert"]')!;
   const codeInput = root.querySelector<HTMLInputElement>('[name="roomCode"]')!;
   const serverInput = root.querySelector<HTMLInputElement>('[name="serverUrl"]')!;
+  const syncButton = document.createElement('button');
+  syncButton.className = 'text-button';
+  syncButton.textContent = '同步视频';
+  syncButton.addEventListener('click', () => {
+    void dependencies.send({ type: 'send-video-invitation' });
+  });
+  root.querySelector('.card')!.append(syncButton);
 
   dependencies
     .loadServerUrl?.()

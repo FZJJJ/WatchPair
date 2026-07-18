@@ -11,6 +11,10 @@ let lastVideo: VideoIdentity | undefined;
 let lastMedia: MediaState | undefined;
 let buffering = false;
 let isRoomOwner = false;
+let receivedInvitation:
+  | { invitationId: string; url: string; video: VideoIdentity; media: MediaState }
+  | undefined;
+let pendingInvitation: { video: VideoIdentity; media: MediaState } | undefined;
 
 void initialize();
 
@@ -42,12 +46,15 @@ async function initialize(): Promise<void> {
   if (roomCode) connection.joinRoom((await loadSettings()).serverUrl, roomCode);
 }
 
-chrome.runtime.onMessage.addListener((message: unknown, _sender, respond) => {
-  void handleExtensionMessage(message).then(respond);
+chrome.runtime.onMessage.addListener((message: unknown, sender, respond) => {
+  void handleExtensionMessage(message, sender).then(respond);
   return true;
 });
 
-async function handleExtensionMessage(message: unknown): Promise<unknown> {
+async function handleExtensionMessage(
+  message: unknown,
+  sender?: chrome.runtime.MessageSender,
+): Promise<unknown> {
   if (!connection) await initialize();
   if (!connection) return { ok: false, error: '初始化失败' };
 
@@ -71,6 +78,20 @@ async function handleExtensionMessage(message: unknown): Promise<unknown> {
     return { ok: true };
   }
   if (!roomCode || !isRecord(message)) return { ok: false };
+
+  if (message.type === 'send-video-invitation') {
+    if (!lastVideo || !lastMedia) return { ok: false, error: '请先打开一个 B 站视频' };
+    connection.send({
+      type: 'video-invitation',
+      roomCode,
+      participantId,
+      invitationId: crypto.randomUUID(),
+      url: `https://www.bilibili.com/video/${lastVideo.bvid}/?p=${lastVideo.part}`,
+      video: lastVideo,
+      media: lastMedia,
+    });
+    return { ok: true };
+  }
 
   if (message.type === 'local-media-operation' && hasMediaPayload(message)) {
     lastVideo = message.video;
@@ -96,12 +117,36 @@ async function handleExtensionMessage(message: unknown): Promise<unknown> {
     lastVideo = message.video;
     lastMedia = message.media;
     if (isRoomOwner) sendSnapshot();
+    if (pendingInvitation && sender?.tab?.id !== undefined) {
+      void chrome.tabs.sendMessage(sender.tab.id, {
+        type: 'media-operation',
+        roomCode: roomCode ?? 'AAAAAA',
+        revision: 0,
+        serverSentAt: Date.now(),
+        participantId: 'invitation',
+        video: pendingInvitation.video,
+        media: pendingInvitation.media,
+      });
+      pendingInvitation = undefined;
+    }
     return { ok: true };
   }
   return { ok: false };
 }
 
 function handleServerMessage(message: ServerMessage): void {
+  if (message.type === 'video-invitation') {
+    receivedInvitation = message;
+    void chrome.notifications.create(message.invitationId, {
+      type: 'basic',
+      iconUrl: 'icon.svg',
+      title: 'WatchPair：一起看视频',
+      message: '对方想和你一起看一个 B 站视频',
+      buttons: [{ title: '前往观看' }, { title: '暂不跳转' }],
+      requireInteraction: true,
+    });
+    return;
+  }
   if (message.type === 'room-created' || message.type === 'room-joined') {
     roomCode = message.roomCode;
     if (message.type === 'room-created') isRoomOwner = true;
@@ -110,6 +155,19 @@ function handleServerMessage(message: ServerMessage): void {
   }
   void broadcastToExtension(message);
 }
+
+chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
+  if (buttonIndex !== 0 || receivedInvitation?.invitationId !== notificationId) return;
+  const invitation = receivedInvitation;
+  pendingInvitation = { video: invitation.video, media: invitation.media };
+  void chrome.tabs.query({ active: true, lastFocusedWindow: true }).then((tabs) => {
+    const tab = tabs[0];
+    if (tab?.id !== undefined) return chrome.tabs.update(tab.id, { url: invitation.url });
+    return undefined;
+  });
+  receivedInvitation = undefined;
+  void chrome.notifications.clear(notificationId);
+});
 
 function sendSnapshot(): void {
   if (!isRoomOwner || !connection || !roomCode || !lastVideo || !lastMedia) return;

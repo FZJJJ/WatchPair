@@ -3,7 +3,7 @@
   "name": "WatchPair",
   "version": "0.1.0",
   "description": "与远方的另一半同步观看哔哩哔哩视频。",
-  "permissions": ["storage"],
+  "permissions": ["storage", "notifications", "tabs"],
   "host_permissions": ["https://www.bilibili.com/video/*"],
   "background": {
     "service_worker": "background/service-worker.js",
