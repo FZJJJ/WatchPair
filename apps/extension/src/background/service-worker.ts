@@ -11,9 +11,9 @@ let lastVideo: VideoIdentity | undefined;
 let lastMedia: MediaState | undefined;
 let buffering = false;
 let isRoomOwner = false;
+let hasPublishedInitialSnapshot = false;
 let receivedInvitation:
-  | { invitationId: string; url: string; video: VideoIdentity; media: MediaState }
-  | undefined;
+  { invitationId: string; url: string; video: VideoIdentity; media: MediaState } | undefined;
 let pendingInvitation: { video: VideoIdentity; media: MediaState } | undefined;
 
 void initialize();
@@ -62,11 +62,13 @@ async function handleExtensionMessage(
     return { ok: true, roomCode, connectionStatus, peerConnected: false };
   }
   if (isRecord(message) && message.type === 'create-room') {
+    hasPublishedInitialSnapshot = false;
     connection.createRoom((await loadSettings()).serverUrl);
     return { ok: true };
   }
   if (isRecord(message) && message.type === 'join-room' && typeof message.roomCode === 'string') {
     isRoomOwner = false;
+    hasPublishedInitialSnapshot = true;
     connection.joinRoom((await loadSettings()).serverUrl, message.roomCode.toUpperCase());
     return { ok: true };
   }
@@ -116,7 +118,10 @@ async function handleExtensionMessage(
   if (message.type === 'video-ready' && hasMediaPayload(message)) {
     lastVideo = message.video;
     lastMedia = message.media;
-    if (isRoomOwner) sendSnapshot();
+    if (isRoomOwner && !hasPublishedInitialSnapshot) {
+      sendSnapshot();
+      hasPublishedInitialSnapshot = true;
+    }
     if (pendingInvitation && sender?.tab?.id !== undefined) {
       void chrome.tabs.sendMessage(sender.tab.id, {
         type: 'media-operation',
@@ -149,9 +154,11 @@ function handleServerMessage(message: ServerMessage): void {
   }
   if (message.type === 'room-created' || message.type === 'room-joined') {
     roomCode = message.roomCode;
-    if (message.type === 'room-created') isRoomOwner = true;
+    if (message.type === 'room-created') {
+      isRoomOwner = true;
+      hasPublishedInitialSnapshot = false;
+    }
     void chrome.storage.local.set({ activeRoomCode: roomCode, isRoomOwner });
-    if (isRoomOwner) sendSnapshot();
   }
   void broadcastToExtension(message);
 }

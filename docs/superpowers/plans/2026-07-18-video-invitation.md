@@ -13,6 +13,7 @@
 ### Task 1: 协议与服务端邀请转发
 
 **Files:**
+
 - Modify: `packages/protocol/src/messages.ts`
 - Modify: `apps/server/src/index.ts`
 - Test: `packages/protocol/tests/messages.test.ts`
@@ -26,6 +27,7 @@
 ### Task 2: 后台确认与安全导航
 
 **Files:**
+
 - Modify: `apps/extension/public/manifest.json`
 - Modify: `apps/extension/src/background/service-worker.ts`
 - Test: `apps/extension/tests/service-worker-invitation.test.ts`
@@ -38,6 +40,7 @@
 ### Task 3: 发起按钮与文档
 
 **Files:**
+
 - Modify: `apps/extension/src/popup/popup-controller.ts`
 - Modify: `apps/extension/src/popup/styles.css`
 - Modify: `apps/extension/src/background/service-worker.ts`

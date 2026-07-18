@@ -36,7 +36,19 @@ export function renderPopup(root: HTMLElement, dependencies: PopupDependencies):
   syncButton.className = 'text-button';
   syncButton.textContent = '同步视频';
   syncButton.addEventListener('click', () => {
-    void dependencies.send({ type: 'send-video-invitation' });
+    dependencies.send({ type: 'send-video-invitation' }).then((response: unknown) => {
+      if (
+        typeof response === 'object' &&
+        response !== null &&
+        'ok' in response &&
+        response.ok === false
+      ) {
+        error.textContent =
+          'error' in response && typeof response.error === 'string'
+            ? response.error
+            : '请在 B 站视频页加载完成后再试';
+      }
+    });
   });
   root.querySelector('.card')!.append(syncButton);
 
