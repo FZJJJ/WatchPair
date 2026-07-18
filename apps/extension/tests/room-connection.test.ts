@@ -62,6 +62,13 @@ describe('RoomConnection', () => {
       revision: 0,
       serverSentAt: 1_000,
     });
+
+    expect(JSON.parse(sockets[0]!.sent[1]!)).toEqual({
+      type: 'request-snapshot',
+      roomCode: 'AB3K7M',
+      participantId: 'participant-alice',
+    });
+
     sockets[0]!.close();
     vi.advanceTimersByTime(500);
     sockets[1]!.dispatchEvent(new Event('open'));

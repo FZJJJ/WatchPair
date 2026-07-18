@@ -100,6 +100,13 @@ export class RoomConnection {
       if (parsed.data.type === 'room-created' || parsed.data.type === 'room-joined') {
         this.#desiredRoomCode = parsed.data.roomCode;
         this.#creating = false;
+        if (parsed.data.type === 'room-joined') {
+          this.send({
+            type: 'request-snapshot',
+            roomCode: parsed.data.roomCode,
+            participantId: this.#participantId,
+          });
+        }
       }
       this.#onMessage(parsed.data);
     });

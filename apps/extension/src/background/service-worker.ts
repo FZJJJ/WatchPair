@@ -10,16 +10,27 @@ let connectionStatus = 'disconnected';
 let lastVideo: VideoIdentity | undefined;
 let lastMedia: MediaState | undefined;
 let buffering = false;
+let isRoomOwner = false;
 
 void initialize();
 
 async function initialize(): Promise<void> {
-  const stored = (await chrome.storage.local.get('participantId')) as { participantId?: unknown };
+  const stored = (await chrome.storage.local.get([
+    'participantId',
+    'activeRoomCode',
+    'isRoomOwner',
+  ])) as {
+    participantId?: unknown;
+    activeRoomCode?: unknown;
+    isRoomOwner?: unknown;
+  };
   participantId =
     typeof stored.participantId === 'string'
       ? stored.participantId
       : `participant-${crypto.randomUUID()}`;
   await chrome.storage.local.set({ participantId });
+  roomCode = typeof stored.activeRoomCode === 'string' ? stored.activeRoomCode : undefined;
+  isRoomOwner = stored.isRoomOwner === true;
   connection = new RoomConnection({
     participantId,
     onMessage: handleServerMessage,
@@ -28,6 +39,7 @@ async function initialize(): Promise<void> {
       void broadcastToExtension({ type: 'connection-status', status });
     },
   });
+  if (roomCode) connection.joinRoom((await loadSettings()).serverUrl, roomCode);
 }
 
 chrome.runtime.onMessage.addListener((message: unknown, _sender, respond) => {
@@ -47,12 +59,15 @@ async function handleExtensionMessage(message: unknown): Promise<unknown> {
     return { ok: true };
   }
   if (isRecord(message) && message.type === 'join-room' && typeof message.roomCode === 'string') {
+    isRoomOwner = false;
     connection.joinRoom((await loadSettings()).serverUrl, message.roomCode.toUpperCase());
     return { ok: true };
   }
   if (isRecord(message) && message.type === 'leave-room') {
     connection.leave();
     roomCode = undefined;
+    isRoomOwner = false;
+    await chrome.storage.local.remove(['activeRoomCode', 'isRoomOwner']);
     return { ok: true };
   }
   if (!roomCode || !isRecord(message)) return { ok: false };
@@ -75,25 +90,29 @@ async function handleExtensionMessage(message: unknown): Promise<unknown> {
     buffering = message.buffering === true;
     lastVideo = message.video;
     lastMedia = message.media;
-    sendSnapshot();
     return { ok: true };
   }
   if (message.type === 'video-ready' && hasMediaPayload(message)) {
     lastVideo = message.video;
     lastMedia = message.media;
+    if (isRoomOwner) sendSnapshot();
     return { ok: true };
   }
   return { ok: false };
 }
 
 function handleServerMessage(message: ServerMessage): void {
-  if (message.type === 'room-created' || message.type === 'room-joined')
+  if (message.type === 'room-created' || message.type === 'room-joined') {
     roomCode = message.roomCode;
+    if (message.type === 'room-created') isRoomOwner = true;
+    void chrome.storage.local.set({ activeRoomCode: roomCode, isRoomOwner });
+    if (isRoomOwner) sendSnapshot();
+  }
   void broadcastToExtension(message);
 }
 
 function sendSnapshot(): void {
-  if (!connection || !roomCode || !lastVideo || !lastMedia) return;
+  if (!isRoomOwner || !connection || !roomCode || !lastVideo || !lastMedia) return;
   connection.send({
     type: 'state-snapshot',
     roomCode,
@@ -104,8 +123,6 @@ function sendSnapshot(): void {
     buffering,
   });
 }
-
-setInterval(sendSnapshot, 5_000);
 
 async function broadcastToExtension(message: unknown): Promise<void> {
   await chrome.runtime.sendMessage(message).catch(() => undefined);
