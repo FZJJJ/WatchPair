@@ -79,6 +79,28 @@ async function handleExtensionMessage(
     await chrome.storage.local.remove(['activeRoomCode', 'isRoomOwner']);
     return { ok: true };
   }
+
+  if (isRecord(message) && message.type === 'video-ready' && hasMediaPayload(message)) {
+    lastVideo = message.video;
+    lastMedia = message.media;
+    if (roomCode && isRoomOwner && !hasPublishedInitialSnapshot) {
+      sendSnapshot();
+      hasPublishedInitialSnapshot = true;
+    }
+    if (roomCode && pendingInvitation && sender?.tab?.id !== undefined) {
+      void chrome.tabs.sendMessage(sender.tab.id, {
+        type: 'media-operation',
+        roomCode,
+        revision: 0,
+        serverSentAt: Date.now(),
+        participantId: 'invitation',
+        video: pendingInvitation.video,
+        media: pendingInvitation.media,
+      });
+      pendingInvitation = undefined;
+    }
+    return { ok: true };
+  }
   if (!roomCode || !isRecord(message)) return { ok: false };
 
   if (message.type === 'send-video-invitation') {
@@ -113,27 +135,6 @@ async function handleExtensionMessage(
     buffering = message.buffering === true;
     lastVideo = message.video;
     lastMedia = message.media;
-    return { ok: true };
-  }
-  if (message.type === 'video-ready' && hasMediaPayload(message)) {
-    lastVideo = message.video;
-    lastMedia = message.media;
-    if (isRoomOwner && !hasPublishedInitialSnapshot) {
-      sendSnapshot();
-      hasPublishedInitialSnapshot = true;
-    }
-    if (pendingInvitation && sender?.tab?.id !== undefined) {
-      void chrome.tabs.sendMessage(sender.tab.id, {
-        type: 'media-operation',
-        roomCode: roomCode ?? 'AAAAAA',
-        revision: 0,
-        serverSentAt: Date.now(),
-        participantId: 'invitation',
-        video: pendingInvitation.video,
-        media: pendingInvitation.media,
-      });
-      pendingInvitation = undefined;
-    }
     return { ok: true };
   }
   return { ok: false };
